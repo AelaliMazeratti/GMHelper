@@ -5,7 +5,7 @@ from discord.ext import commands
 
 load_dotenv()
 
-intents = discord.Intents(messages=True, guilds=True)
+intents = discord.Intents(messages=True, guilds=True, message_content=True)
 token = os.getenv("DISCORD_TOKEN")
 if token is None:
     raise RuntimeError("DISCORD_TOKEN is not set")
