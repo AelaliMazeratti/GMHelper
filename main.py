@@ -5,9 +5,12 @@ from discord.ext import commands
 
 load_dotenv()
 
-token: str = os.getenv("DISCORD_TOKEN")
-bot = commands.Bot(command_prefix="!")
-bot.run(token)
+intents = discord.Intents(messages=True, guilds=True)
+token = os.getenv("DISCORD_TOKEN")
+if token is None:
+    raise RuntimeError("DISCORD_TOKEN is not set")
+
+bot = commands.Bot(command_prefix="!", intents=intents)
 
 @bot.event
 async def on_ready():
@@ -17,3 +20,5 @@ async def on_ready():
 @bot.command()
 async def ping(ctx):
     await ctx.send('Pong!')
+
+bot.run(token)
