@@ -17,11 +17,11 @@ async def on_ready():
     print(f'Logged in as {bot.user.name} ({bot.user.id})')
     print('------')
 
-@bot.command() # sends "Pong!" to the channel where the command was invoked
+@bot.command(help="Ping command to check if the bot is responding") # sends "Pong!" to the channel where the command was invoked
 async def ping(ctx):
     await ctx.send('Pong!')
 
-@bot.command() # sends daily stats to the channel where the command was invoked
+@bot.command(help="Shows your daily stats for everyone to see", brief="Get judged, idiot") # sends daily stats to the channel where the command was invoked
 async def dailystats(ctx):
     if os.path.exists('data/daily_stats.json'): # if the file exists, load the data from it
         with open('data/daily_stats.json', 'r') as file:
