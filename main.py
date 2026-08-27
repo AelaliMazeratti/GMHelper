@@ -1,24 +1,24 @@
 import os
+from settings import *
 from dotenv import load_dotenv
-import discord
-from discord.ext import commands
+import json
+
 
 load_dotenv()
 
-intents = discord.Intents(messages=True, guilds=True, message_content=True)
 token = os.getenv("DISCORD_TOKEN")
 if token is None:
     raise RuntimeError("DISCORD_TOKEN is not set")
 
-bot = commands.Bot(command_prefix="!", intents=intents)
-
 @bot.event
 async def on_ready():
+    assert bot.user is not None
     print(f'Logged in as {bot.user.name} ({bot.user.id})')
     print('------')
 
 @bot.command()
 async def ping(ctx):
+    # sends "Pong!" to the channel where the command was invoked
     await ctx.send('Pong!')
 
 bot.run(token)
