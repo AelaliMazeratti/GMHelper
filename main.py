@@ -22,14 +22,20 @@ async def ping(ctx):
     await ctx.send('Pong!')
 
 @bot.command(help="Shows your daily stats for everyone to see", brief="Get judged, idiot") # sends daily stats to the channel where the command was invoked
-async def dailystats(ctx):
+async def judge(ctx, member: discord.Member | None = None):
+
+    if member is None:
+        target = ctx.author
+    else:
+        target = member
+
     if os.path.exists('data/daily_stats.json'): # if the file exists, load the data from it
         with open('data/daily_stats.json', 'r') as file:
             daily_stats = json.load(file)
     else: # if the file does not exist, create an empty dictionary
         daily_stats = {}
 
-    user_id = str(ctx.author.id)
+    user_id = str(target.id)
     today = datetime.datetime.now(ZoneInfo("Asia/Yerevan")).date().isoformat()
 
     if user_id not in daily_stats or daily_stats[user_id]["last_used"] != today: # user has already used the command today
@@ -50,7 +56,7 @@ async def dailystats(ctx):
     cringe = daily_stats[user_id]["stats"]["cringe"]
     sus = daily_stats[user_id]["stats"]["sus"]
 
-    await ctx.send(f"{ctx.author.mention}'s daily stats:\n"
+    await ctx.send(f"{target.mention}'s daily stats:\n"
                        f"Cringe: {cringe}%\n"
                        f"Sus: {sus}%"
                        )
