@@ -17,6 +17,11 @@ async def on_ready():
     print(f'Logged in as {bot.user.name} ({bot.user.id})')
     print('------')
 
+@bot.event
+async def on_command_error(ctx, error):
+    if isinstance(error, commands.CommandNotFound):
+        await ctx.send(f"Fuck off, {ctx.author.mention}")
+
 @bot.command(help="Ping command to check if the bot is responding") # sends "Pong!" to the channel where the command was invoked
 async def ping(ctx):
     await ctx.send('Pong!')
