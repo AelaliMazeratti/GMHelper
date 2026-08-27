@@ -228,5 +228,8 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-#custom
+# dev tools
 scripts/aliases.sh
+
+# runtime data
+data/
