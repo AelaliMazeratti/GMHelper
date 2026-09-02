@@ -3,18 +3,25 @@ from dotenv import load_dotenv
 from settings import *
 import json
 import random
+from database import get_today
 
+# load environment variables from .env file
 load_dotenv()
-os.makedirs('data', exist_ok=True)
 
+# initialize the bot
 token = os.getenv("DISCORD_TOKEN")
 if token is None:
     raise RuntimeError("DISCORD_TOKEN is not set. Please set it in the .env file.")
+bot = commands.Bot(command_prefix=COMMAND_PREFIX, intents=INTENTS) # bot command prefix
 
+# print startup message
 @bot.event
 async def on_ready():
     assert bot.user is not None
     print(f'Logged in as {bot.user.name} ({bot.user.id})')
+    print('------')
+    for guild in bot.guilds:
+        print(f'Connected to guild: {guild.name} (id: {guild.id})')
     print('------')
 
 @bot.event
@@ -23,11 +30,13 @@ async def on_command_error(ctx, error):
         response = [f"Fuck off, {ctx.author.mention}", "U w0t m8?", f"No such command, {ctx.author.mention}", "Use Help, dumbass"]
         await ctx.send(random.choice(response))
 
-@bot.command(help="Ping command to check if the bot is responding") # sends "Pong!" to the channel where the command was invoked
+# sends "Pong!" to the channel where the command was invoked
+@bot.command(help="Ping command to check if the bot is responding") 
 async def ping(ctx):
     await ctx.send('Pong!')
 
-@bot.command(help="Shows your daily stats for everyone to see", brief="Get judged, idiot") # sends daily stats to the channel where the command was invoked
+# sends daily stats to the channel where the command was invoked
+@bot.command(help="Shows your daily stats for everyone to see", brief="Get judged, idiot") 
 async def judge(ctx, member: discord.Member | None = None):
 
     if member is None:
@@ -42,7 +51,7 @@ async def judge(ctx, member: discord.Member | None = None):
         daily_stats = {}
 
     user_id = str(target.id)
-    today = datetime.datetime.now(ZoneInfo("Asia/Yerevan")).date().isoformat()
+    today = get_today()
 
     if user_id not in daily_stats or daily_stats[user_id]["last_used"] != today: # user has already used the command today
         cringe = random.randint(1, 100)
