@@ -24,6 +24,7 @@ async def on_ready():
         print(f'Connected to guild: {guild.name} (id: {guild.id})')
     print('------')
 
+# display error message when a command is not found
 @bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
