@@ -69,44 +69,26 @@ async def ping(ctx):
 @bot.command(help="Shows your daily stats for everyone to see", brief="Get judged, idiot") 
 async def judge(ctx, member: discord.Member | None = None):
 
+    if ctx.guild is None:
+        raise RuntimeError("judge command invoked outside of a guild")
     if member is None:
         target = ctx.author
     else:
         target = member
 
-    if os.path.exists('data/daily_stats.json'): # if the file exists, load the data from it
-        with open('data/daily_stats.json', 'r') as file:
-            daily_stats = json.load(file)
-    else: # if the file does not exist, create an empty dictionary
-        daily_stats = {}
-
     user_id = str(target.id)
-    today = get_today()
+    stats = get_daily_stats(ctx.guild.id, user_id)
+    if stats["cringe"] is None or stats["sus"] is None:
+        print("Failed to retrieve daily stats for the specified user, running a fallback")
+        generate_daily_stats(ctx.guild)
+        stats = get_daily_stats(ctx.guild.id, user_id)
 
-    if user_id not in daily_stats or daily_stats[user_id]["last_used"] != today: # user has already used the command today
-        cringe = random.randint(1, 100)
-        sus = random.randint(1, 100)
-        
-        daily_stats[user_id] = {
-            "last_used": today,
-            "stats": {
-                "cringe": cringe,
-                "sus": sus
-                }
-            }
-        
-        with open('data/daily_stats.json', 'w') as file:
-            json.dump(daily_stats, file, indent=4)
+    cringe = stats["cringe"]
+    sus = stats["sus"]
 
-    cringe = daily_stats[user_id]["stats"]["cringe"]
-    sus = daily_stats[user_id]["stats"]["sus"]
 
-    await ctx.send(f"{target.mention}'s daily stats:\n"
-                       f"Cringe: {cringe}%\n"
-                       f"Sus: {sus}%"
-                       )
+    await ctx.send(f"{target.mention} is {cringe}% cringe and {sus}% sus today.")
 
-bot.run(token)
 # run the bot if it is not in a test environment
 if __name__ == "__main__":
     bot.run(token)
