@@ -60,6 +60,11 @@ async def on_command_error(ctx, error):
         response = [f"Fuck off, {ctx.author.mention}", "U w0t m8?", f"No such command, {ctx.author.mention}", "Use Help, dumbass"]
         await ctx.send(random.choice(response))
 
+# generates daily stats when a member joins the guild
+@bot.event
+async def on_member_join(member):
+    generate_daily_stats(member.guild)
+
 # sends "Pong!" to the channel where the command was invoked
 @bot.command(help="Ping command to check if the bot is responding") 
 async def ping(ctx):

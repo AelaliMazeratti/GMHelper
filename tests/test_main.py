@@ -216,3 +216,14 @@ async def test_judge_outside_guild():
         await main.judge.callback(mock_ctx)  # type: ignore
 
     assert str(excinfo.value) == "judge command invoked outside of a guild"
+
+# test on_member_join event triggers generate_daily_stats
+@pytest.mark.asyncio
+async def test_on_member_join():
+    mock_guild = SimpleNamespace(id=123)
+    mock_member = SimpleNamespace(guild=mock_guild)
+
+    with patch("main.generate_daily_stats") as mock_generate:
+        await main.on_member_join(mock_member)  # type: ignore
+
+    mock_generate.assert_called_once_with(mock_guild)
