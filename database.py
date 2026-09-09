@@ -1,7 +1,10 @@
+import random
 import sqlite3
 import os
 import discord
 from datetime import datetime
+
+from discord import guild
 from settings import TIMEZONE
 import json
 
@@ -75,3 +78,38 @@ def db_init(guild, root: str = "data") -> None:
 # returns the current date in the specified timezone as a string in ISO format
 def get_today() -> str:
     return datetime.now(TIMEZONE).date().isoformat()
+
+# fetches the daily stats for a specific user in a specific guild from the database
+def get_daily_stats(guild_id: int, user_id: str, root: str = "data") -> dict:
+    path = get_guild_data_path(guild_id, root)
+    db_file = os.path.join(path, f"guild_{guild_id}.db")
+    con = sqlite3.connect(db_file)
+    cur = con.cursor()
+
+    today = get_today()
+    cur.execute("SELECT cringe, sus FROM daily_stats WHERE user_id = ? AND date = ?", (user_id, today))
+    row = cur.fetchone()
+    con.close()
+
+    if row:
+        return {"cringe": row[0], "sus": row[1]}
+    else:
+        return {"cringe": None, "sus": None}
+
+# generates daily stats for all members of a guild and stores them in the database
+def generate_daily_stats(guild: discord.Guild, root: str = "data"):
+    path = get_guild_data_path(guild.id, root)
+    db_file = os.path.join(path, f"guild_{guild.id}.db")
+    con = sqlite3.connect(db_file)
+    cur = con.cursor()
+    today = get_today()
+
+    for member in guild.members:
+        if member.bot:
+            continue  # skip bots
+        cringe = random.randint(1, 100)
+        sus = random.randint(1, 100)
+        cur.execute("INSERT OR IGNORE INTO daily_stats (user_id, date, cringe, sus) VALUES (?, ?, ?, ?)", (member.id, today, cringe, sus))
+        
+    con.commit()
+    con.close()
