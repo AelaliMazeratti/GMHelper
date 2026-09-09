@@ -230,7 +230,6 @@ __marimo__/
 
 # dev tools
 scripts/aliases.sh
-tests/
 
 # runtime data
 data/
