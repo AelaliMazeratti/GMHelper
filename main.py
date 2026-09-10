@@ -53,6 +53,11 @@ async def on_ready():
 
     print('------')
 
+# guild update listener
+@bot.event
+async def on_guild_update(before: discord.Guild, after: discord.Guild):
+    update_guild_metadata(after) # update the metadata.json file when the guild is updated
+
 # display error message when a command is not found
 @bot.event
 async def on_command_error(ctx, error):
