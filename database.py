@@ -27,19 +27,135 @@ def update_guild_metadata(guild: discord.Guild, root: str = "data") -> None:
     with open(metadata_file, "w") as file:
         json.dump(metadata, file, indent=4)
 
-# create campaign, NOT FINISHED YET
-def create_campaign(guild_id: int, campaign_name: str, root: str = "data") -> None:
+# creates or updates the game_index.json file for a guild
+def update_game_index(guild_id: int, root: str = "data") -> None:
     path = get_guild_data_path(guild_id, root)
-    campaign_path = os.path.join(path, "campaigns", campaign_name)
+    db_file = os.path.join(path, f"guild_{guild_id}.db")
+    game_index_file = os.path.join(path, "game_index.json")
+
+    con = sqlite3.connect(db_file)
+    cur = con.cursor()
+    campaigns = cur.execute("SELECT game_system, id, name, path FROM campaigns WHERE active = 1").fetchall()
+    con.close()
+
+    game_index = []
+
+    for campaign in campaigns:
+        game_index.append({
+            "system": campaign[0],
+            "campaign_id": campaign[1],
+            "campaign_name": campaign[2],
+            "campaign_path": campaign[3]
+        })
+
+    with open(game_index_file, "w") as file:
+        json.dump(game_index, file, indent=4)
+
+# creates campaign
+def create_campaign(guild_id: int, game_system: str, campaign_name: str, root: str = "data") -> None:
+    path = get_guild_data_path(guild_id, root)
+    db_file = os.path.join(path, f"guild_{guild_id}.db")
+
+    con = sqlite3.connect(db_file)
+    cur = con.cursor()
+    cur.execute("INSERT INTO campaigns (game_system, name, path) VALUES (?, ?, ?)",
+                (game_system, campaign_name, "")
+    )
+    campaign_id = cur.lastrowid
+    campaign_path = os.path.join(path, game_system, f"campaign_{campaign_id}")
     os.makedirs(campaign_path, exist_ok=True)
-    cleaned_campaign_name = campaign_name.replace(" ", "_").lower()
-    db_file = os.path.join(campaign_path, f"{cleaned_campaign_name}.db")
+
+    cur.execute("UPDATE campaigns SET path = ? WHERE id = ?",
+                (os.path.relpath(campaign_path, path), campaign_id)
+    )
+
+    con.commit()
+    con.close()
+
+    update_game_index(guild_id, root)
+
+# deactivates active campaign
+def campaign_deactivate(guild_id: int, campaign_id: int, root: str = "data") -> str:
+    path = get_guild_data_path(guild_id, root)
+    db_file = os.path.join(path, f"guild_{guild_id}.db")
+
+    con = sqlite3.connect(db_file)
+    cur = con.cursor()
+
+    # check the current status for error handling purposes
+    campaign = cur.execute("SELECT active FROM campaigns WHERE id = ?",
+        (campaign_id,)
+    ).fetchone()
+
+    if campaign is None:
+        con.close()
+        return "not_found"
+
+    if campaign[0] == 0:
+        con.close()
+        return "already_inactive"
+
+    cur.execute(
+        "UPDATE campaigns SET active = 0 WHERE id = ?",
+        (campaign_id,)
+    )
+
+    con.commit()
+    con.close()
+
+    update_game_index(guild_id, root)
+
+    return "deactivated"
+
+# reactivates existing but inactive campaign
+def campaign_reactivate(guild_id: int, campaign_id: int, root: str = "data") -> str:
+    path = get_guild_data_path(guild_id, root)
+    db_file = os.path.join(path, f"guild_{guild_id}.db")
+
+    con = sqlite3.connect(db_file)
+    cur = con.cursor()
+
+    # check the current status for error handling purposes
+    campaign = cur.execute("SELECT active FROM campaigns WHERE id = ?",
+        (campaign_id,)
+    ).fetchone()
+
+    if campaign is None:
+        con.close()
+        return "not_found"
+
+    if campaign[0] == 1:
+        con.close()
+        return "already_active"
+
+    cur.execute("UPDATE campaigns SET active = 1 WHERE id = ?",
+        (campaign_id,)
+    )
+
+    con.commit()
+    con.close()
+
+    update_game_index(guild_id, root)
+
+    return "reactivated"
+
+def get_campaigns(guild_id: int, root: str = "data"):
+    path = get_guild_data_path(guild_id, root)
+    db_file = os.path.join(path, f"guild_{guild_id}.db")
+
+    con = sqlite3.connect(db_file)
+    cur = con.cursor()
+
+    campaigns = cur.execute("SELECT id, game_system, name, active FROM campaigns").fetchall()
+
+    con.close()        
+    return campaigns                   
 
 # initializes the database and create relevant tables if they don't exist
 def db_init(guild, root: str = "data") -> None:
     guild_id = guild.id
-    path = get_guild_data_path(guild_id, root)  # ensure the guild data directory exists
-    update_guild_metadata(guild, root)  # update the metadata.json file
+    path = get_guild_data_path(guild_id, root) 
+    update_guild_metadata(guild, root) 
     name = f"guild_{guild_id}.db"
     con = sqlite3.connect(os.path.join(path, name))
     cur = con.cursor()
@@ -48,7 +164,9 @@ def db_init(guild, root: str = "data") -> None:
     cur.execute("CREATE TABLE IF NOT EXISTS campaigns (" \
             "id INTEGER PRIMARY KEY AUTOINCREMENT," \
             "name TEXT NOT NULL," \
-            "game_system TEXT NOT NULL" \
+            "game_system TEXT NOT NULL," \
+            "path TEXT NOT NULL," \
+            "active INTEGER NOT NULL DEFAULT 1" \
         ")"
     )
 

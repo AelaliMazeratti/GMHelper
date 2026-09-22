@@ -178,3 +178,237 @@ def test_generate_daily_stats_idempotent(tmp_path):
     assert cur.fetchone()[0] == 2
 
     con.close()
+
+def test_create_campaign(tmp_path):
+    guild_id = 123456
+    root = str(tmp_path)
+
+    # Initialize guild database
+    db_init(type("Guild", (), {"id": guild_id, "name": "Test Guild"})(), root)
+
+    # Create campaign
+    create_campaign(guild_id, "CPR", "Night City Campaign", root)
+
+    guild_path = os.path.join(root, f"guild_{guild_id}")
+    db_file = os.path.join(guild_path, f"guild_{guild_id}.db")
+
+    # Check database record
+    con = sqlite3.connect(db_file)
+    cur = con.cursor()
+
+    campaign = cur.execute(
+        "SELECT game_system, id, name, path, active FROM campaigns"
+    ).fetchone()
+
+    con.close()
+
+    assert campaign[0] == "CPR"
+    assert campaign[1] == 1
+    assert campaign[2] == "Night City Campaign"
+    assert campaign[3] == "CPR/campaign_1"
+    assert campaign[4] == 1
+
+    # Check campaign directory
+    campaign_path = os.path.join(guild_path, "CPR", "campaign_1")
+    assert os.path.isdir(campaign_path)
+
+    # Check game index
+    index_file = os.path.join(guild_path, "game_index.json")
+    assert os.path.isfile(index_file)
+
+    with open(index_file) as file:
+        game_index = json.load(file)
+
+    assert game_index == [
+        {
+            "system": "CPR",
+            "campaign_id": 1,
+            "campaign_name": "Night City Campaign",
+            "campaign_path": "CPR/campaign_1"
+        }
+    ]
+
+def test_create_multiple_campaigns(tmp_path):
+    guild_id = 123456
+    root = str(tmp_path)
+
+    # Initialize guild database
+    db_init(type("Guild", (), {"id": guild_id, "name": "Test Guild"})(), root)
+
+    # Create campaigns
+    create_campaign(guild_id, "CPR", "Night City Campaign", root)
+    create_campaign(guild_id, "CPR", "Another Campaign", root)
+
+    guild_path = os.path.join(root, f"guild_{guild_id}")
+    db_file = os.path.join(guild_path, f"guild_{guild_id}.db")
+
+    # Check database records
+    con = sqlite3.connect(db_file)
+    cur = con.cursor()
+
+    campaigns = cur.execute(
+        "SELECT game_system, id, name, path, active FROM campaigns"
+    ).fetchall()
+
+    con.close()
+
+    assert campaigns == [
+        ("CPR", 1, "Night City Campaign", "CPR/campaign_1", 1),
+        ("CPR", 2, "Another Campaign", "CPR/campaign_2", 1)
+    ]
+
+    # Check campaign directories
+    assert os.path.isdir(
+        os.path.join(guild_path, "CPR", "campaign_1")
+    )
+    assert os.path.isdir(
+        os.path.join(guild_path, "CPR", "campaign_2")
+    )
+
+    # Check game index
+    index_file = os.path.join(guild_path, "game_index.json")
+
+    with open(index_file) as file:
+        game_index = json.load(file)
+
+    assert game_index == [
+        {
+            "system": "CPR",
+            "campaign_id": 1,
+            "campaign_name": "Night City Campaign",
+            "campaign_path": "CPR/campaign_1"
+        },
+        {
+            "system": "CPR",
+            "campaign_id": 2,
+            "campaign_name": "Another Campaign",
+            "campaign_path": "CPR/campaign_2"
+        }
+    ]
+
+def test_campaign_deactivate(tmp_path):
+    guild_id = 123456
+    root = str(tmp_path)
+
+    # Initialize guild database
+    db_init(type("Guild", (), {"id": guild_id, "name": "Test Guild"})(), root)
+
+    # Create campaign
+    create_campaign(guild_id, "CPR", "Night City Campaign", root)
+
+    # Deactivate campaign
+    result = campaign_deactivate(guild_id, 1, root)
+
+    assert result == "deactivated"
+
+    guild_path = os.path.join(root, f"guild_{guild_id}")
+    db_file = os.path.join(guild_path, f"guild_{guild_id}.db")
+
+    # Check database record
+    con = sqlite3.connect(db_file)
+    cur = con.cursor()
+
+    campaign = cur.execute(
+        "SELECT id, active FROM campaigns WHERE id = ?",
+        (1,)
+    ).fetchone()
+
+    con.close()
+
+    assert campaign == (1, 0)
+
+    # Check game index
+    index_file = os.path.join(guild_path, "game_index.json")
+
+    with open(index_file) as file:
+        game_index = json.load(file)
+
+    assert game_index == []
+
+    # Try to deactivate already inactive campaign
+    result = campaign_deactivate(guild_id, 1, root)
+
+    assert result == "already_inactive"
+
+    # Try to deactivate nonexistent campaign
+    result = campaign_deactivate(guild_id, 999, root)
+
+    assert result == "not_found"
+
+def test_campaign_reactivate(tmp_path):
+    guild_id = 123456
+    root = str(tmp_path)
+
+    # Initialize guild database
+    db_init(type("Guild", (), {"id": guild_id, "name": "Test Guild"})(), root)
+
+    # Create campaign
+    create_campaign(guild_id, "CPR", "Night City Campaign", root)
+
+    # Deactivate, then reactivate
+    campaign_deactivate(guild_id, 1, root)
+    result = campaign_reactivate(guild_id, 1, root)
+
+    assert result == "reactivated"
+
+    # Try to reactivate already active campaign
+    result = campaign_reactivate(guild_id, 1, root)
+
+    assert result == "already_active"
+
+    # Try to reactivate nonexistent campaign
+    result = campaign_reactivate(guild_id, 999, root)
+
+    assert result == "not_found"
+
+    guild_path = os.path.join(root, f"guild_{guild_id}")
+    db_file = os.path.join(guild_path, f"guild_{guild_id}.db")
+
+    # Check database record
+    con = sqlite3.connect(db_file)
+    cur = con.cursor()
+
+    campaign = cur.execute(
+        "SELECT id, active FROM campaigns WHERE id = ?",
+        (1,)
+    ).fetchone()
+
+    con.close()
+
+    assert campaign == (1, 1)
+
+    # Check game index
+    index_file = os.path.join(guild_path, "game_index.json")
+
+    with open(index_file) as file:
+        game_index = json.load(file)
+
+    assert game_index == [
+        {
+            "system": "CPR",
+            "campaign_id": 1,
+            "campaign_name": "Night City Campaign",
+            "campaign_path": "CPR/campaign_1"
+        }
+    ]
+
+def test_get_campaigns(tmp_path):
+    guild_id = 123456
+    root = str(tmp_path)
+
+    # Initialize guild database
+    db_init(type("Guild", (), {"id": guild_id, "name": "Test Guild"})(), root)
+
+    # Create campaigns
+    create_campaign(guild_id, "CPR", "Night City Campaign", root)
+    create_campaign(guild_id, "CPR", "Another Campaign", root)
+
+    # Deactivate second campaign
+    campaign_deactivate(guild_id, 2, root)
+
+    campaigns = get_campaigns(guild_id, root)
+
+    assert campaigns == [
+        (1, "CPR", "Night City Campaign", 1),
+        (2, "CPR", "Another Campaign", 0)
+    ]

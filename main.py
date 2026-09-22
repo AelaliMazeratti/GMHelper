@@ -4,7 +4,8 @@ from discord.ext import tasks
 import json
 import random
 from settings import *
-from database import *
+from database import * # type: ignore
+from database import (campaign_deactivate as db_campaign_deactivate, campaign_reactivate as db_campaign_reactivate,)
 
 # load environment variables from .env file
 load_dotenv()
@@ -98,6 +99,56 @@ async def judge(ctx, member: discord.Member | None = None):
 
 
     await ctx.send(f"{target.mention} is {cringe}% cringe and {sus}% sus today.")
+
+# creates a new campaign
+@bot.command(help="Create a new campaign in this server", brief="Create new campaign")
+async def campaign_create(ctx, game_system, *, campaign_name):
+    if game_system != "CPR":
+        await ctx.send(f"Unknown game system: {game_system}")
+        return
+    create_campaign(ctx.guild.id, game_system, campaign_name)
+    await ctx.send(f"Created campaign: {campaign_name}")
+
+# deactivates a campaign
+@bot.command(help="Deactivate a campaign in this server", brief="Deactivate campaign",)
+async def campaign_deactivate(ctx, campaign_id: int):
+    result = db_campaign_deactivate(ctx.guild.id, campaign_id)
+    if result == "not_found":
+        await ctx.send(f"Campaign ID not found: {campaign_id}")
+        return
+    if result == "already_inactive":
+        await ctx.send(f"Campaign is already inactive: {campaign_id}")
+        return
+    await ctx.send(f"Deactivated campaign: {campaign_id}")
+
+# reactivate an existing but inactive campaign
+@bot.command(help="Reactivate a campaign in this server", brief="Reactivate campaign",)
+async def campaign_reactivate(ctx, campaign_id: int):
+    result = db_campaign_reactivate(ctx.guild.id, campaign_id)
+    if result == "not_found":
+        await ctx.send(f"Campaign ID not found: {campaign_id}")
+        return
+    if result == "already_active":
+        await ctx.send(f"Campaign is already active: {campaign_id}")
+        return
+    await ctx.send(f"Reactivated campaign: {campaign_id}")
+
+# show list of campaigns in the guild
+@bot.command(help="List campaigns in the server", brief="List campaigns")
+async def campaign_list(ctx):
+    campaigns = get_campaigns(ctx.guild.id)
+
+    if not campaigns:
+        await ctx.send("You have nothing")
+        return
+
+    list_of_campaigns = "Campaigns:\n"
+
+    for campaign in campaigns:
+        status = "Active" if campaign[3] else "Inactive"
+        list_of_campaigns += f"{campaign[0]}: {campaign[2]} ({campaign[1]}) - {status}\n"
+
+    await ctx.send(list_of_campaigns)
 
 # run the bot if it is not in a test environment
 if __name__ == "__main__":
